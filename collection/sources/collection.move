@@ -53,6 +53,7 @@ module collection::collection {
 
     struct NftMinted has copy, drop {
         id: ID,
+        creator: address,
     }
 
     fun init(ctx: &mut TxContext) {
@@ -81,7 +82,11 @@ module collection::collection {
 
         // Emit event
         let id = object::new(ctx);
-        event::emit(NftMinted { id: object::uid_to_inner(&id) });
+        let sender = tx_context::sender(ctx);
+        event::emit(NftMinted { 
+            id: object::uid_to_inner(&id),
+            creator: sender,
+        });
 
         // Create nft
         let nft = Nft {
@@ -95,7 +100,7 @@ module collection::collection {
         if (MINT_REVEALED) { reveal(&mut nft); };
 
         // Send nft to sender
-        transfer::transfer(nft, tx_context::sender(ctx));
+        transfer::transfer(nft, sender);
     }
 
     public entry fun reveal(nft: &mut Nft) {
