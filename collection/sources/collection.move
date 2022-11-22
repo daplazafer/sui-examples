@@ -1,4 +1,4 @@
-module collection::nft_collection {
+module collection::collection {
     use std::ascii::{Self, String};
     use sui::object::{Self, ID, UID};
     use sui::url::Url;
@@ -36,7 +36,7 @@ module collection::nft_collection {
         id: UID,
     }
 
-    struct Nft has key, store {
+    struct NftName has key, store {
         id: UID,
         name: String,
         url: Url,
@@ -88,7 +88,7 @@ module collection::nft_collection {
         });
 
         // Create the nft
-        let nft = Nft {
+        let nft = NftName {
             id: id,
             name: ascii::string(UNREVEALED_COLLECTION_NAME),
             url: utils::build_url(URL_PREFIX, UNREVEALED_COLLECTION_URI, UNREVEALED_NFT, UNREVEALED_NFT_FORMAT),
@@ -101,7 +101,7 @@ module collection::nft_collection {
         transfer::transfer(nft, sender);
     }
 
-    public entry fun reveal(nft: &mut Nft) {
+    public entry fun reveal(nft: &mut NftName) {
         assert!(!nft.revealed, EALREADY_REVEALED);
 
         nft.name  = ascii::string(COLLECTION_NAME);
