@@ -121,10 +121,6 @@ module collection::collection {
         set::remove(&mut collection.whitelist, tx_context::sender(ctx));
     }
 
-    public entry fun is_whitelisted(collection: &mut NftCollectionNameHere, ctx: &mut TxContext): bool {
-        set::contains(collection.whitelist, &tx_context::sender(ctx))
-    }
-
     public entry fun reveal(nft: &mut NftNameHere) {
         assert!(!nft.revealed, EALREADY_REVEALED);
 
@@ -146,7 +142,7 @@ module collection::collection {
     public entry fun add_to_whitelist(_: &NftCollectionNameHereCap, collection: &mut NftCollectionNameHere, addresses: vector<address>) {
         assert!(!collection.released_whitelist, EALREADY_RELEASED);
 
-        set::add_all(collection.whitelist, addresses);
+        set::add_all(&mut collection.whitelist, addresses);
     }
 
 }
