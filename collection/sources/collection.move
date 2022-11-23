@@ -1,5 +1,6 @@
 module collection::collection {
     use std::ascii::{Self, String};
+    use std::vector;
     use sui::url::Url;
     use sui::object::{Self, ID, UID};
     use sui::transfer;
@@ -7,9 +8,9 @@ module collection::collection {
     use sui::sui::SUI;
     use sui::coin::Coin;
     use sui::event;
+    use sui::vec_set::{Self as set, VecSet as Set};
     use utils::utils;
-    use utils::set::{Self, Set};
-    use operations::payments;
+    use utils::payments;
     
     // ===== Collection parameters =====
 
@@ -73,7 +74,7 @@ module collection::collection {
             counter: 0,
             price: PRICE,
             price_whitelist: WHITELIST_PRICE,
-            whitelist: set::new(),
+            whitelist: set::empty(),
             released_whitelist: false,
             released: false,
         });
@@ -85,7 +86,7 @@ module collection::collection {
         assert!(collection.released_whitelist, EUNRELEASED);
         let price = collection.price;
         if(!collection.released) {
-            assert!(set::contains(collection.whitelist, &tx_context::sender(ctx)), ESENDER_NOT_IN_WHITELIST);
+            assert!(set::contains(&collection.whitelist, &tx_context::sender(ctx)), ESENDER_NOT_IN_WHITELIST);
             price = collection.price_whitelist;
         };
 
@@ -118,7 +119,7 @@ module collection::collection {
         transfer::transfer(nft, tx_context::sender(ctx));
 
         // Remove user from whitelist
-        set::remove(&mut collection.whitelist, tx_context::sender(ctx));
+        set::remove(&mut collection.whitelist, &tx_context::sender(ctx));
     }
 
     public entry fun reveal(nft: &mut NftNameHere) {
@@ -136,13 +137,15 @@ module collection::collection {
     public entry fun release(_: &NftCollectionNameHereCap, collection: &mut NftCollectionNameHere) {
         collection.released_whitelist = true;
         collection.released = true;
-        set::clear(&mut collection.whitelist);
+        collection.whitelist = set::empty();
     }
 
     public entry fun add_to_whitelist(_: &NftCollectionNameHereCap, collection: &mut NftCollectionNameHere, addresses: vector<address>) {
         assert!(!collection.released_whitelist, EALREADY_RELEASED);
 
-        set::add_all(&mut collection.whitelist, addresses);
+        while(!vector::is_empty(&addresses)) {
+            set::insert(&mut collection.whitelist, vector::pop_back(&mut addresses));
+        };
     }
 
 }
