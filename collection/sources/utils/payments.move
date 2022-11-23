@@ -1,4 +1,4 @@
-module collection::payments {
+module utils::payments {
     use sui::coin;
     use sui::transfer;
     use sui::pay;

@@ -1,5 +1,6 @@
-module collection::utils {
+module utils::utils {
     use std::vector;
+    use std::ascii::{Self, String};
     use sui::url::{Self, Url};
 
     const URL_SEPARATOR: vector<u8> = b"/";
@@ -26,5 +27,9 @@ module collection::utils {
         vector::push_back(&mut result, (number+48 as u8));
         vector::reverse(&mut result);
         result
+    }
+
+    public fun u64_to_string(number: u64): String {
+        ascii::string(u64_to_vector(number))
     }
 }
