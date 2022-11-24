@@ -1,5 +1,7 @@
 # **NFT collection example**
 
+### ***To rename entire collection objects replace `NftNameHere` with your collection name in collection.move*
+
 ## **1. Deploy contract**
 * Install [sui](https://docs.sui.io/devnet/learn) and run this command to deploy contract on the blockchain:
 ```
