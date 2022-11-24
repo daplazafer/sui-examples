@@ -32,20 +32,6 @@ $ sui client call --package 0xcontract_address --module "collection" --function 
 ```
 ### **2.2 Cap priviledges**
 Only the owner (deployer) has priviledges to use these functions. The collection cap is needed to call every function in this list.
-* ### **Release collection for whitelist (`release_whitelist`)**
-  Release the collection for minting but only for addresses in whitelist.
-  * **$1:** Collection cap address
-  * **$2:** Collection address
-```
-$ sui client call --package 0xcontract_address --module "collection" --function "release_whitelist" --args 0xcollection_cap 0xcollection --gas-budget 10000
-```
-* ### **Release collection for all (`release`)**
-  Release the collection for everyone.
-  * **$1:** Collection cap address
-  * **$2:** Collection address
-```
-$ sui client call --package 0xcontract_address --module "collection" --function "release" --args 0xcollection_cap 0xcollection --gas-budget 10000
-```
 * ### **Add users to whitelist (`add_to_whitelist`)**
   Add users to whitelist.
   * **$1:** Collection cap address
