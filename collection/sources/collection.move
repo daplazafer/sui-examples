@@ -35,11 +35,9 @@ module collection::collection {
     // =================================
     
     const ESoldOut: u64 = 0;
-    const ECollectionNotReleasedYet: u64 = 1;
-    const ECollectionAlreadyReleasedForWhitelist: u64 = 2;
-    const ECollectionAlreadyReleased: u64 = 3;
-    const ESenderNotInWhitelist: u64 = 4;
-    const ENftAlreadyRevealed: u64 = 5;
+    const ECollectionAlreadyReleased: u64 = 1;
+    const ESenderNotInWhitelist: u64 = 2;
+    const ENftAlreadyRevealed: u64 = 3;
 
     struct NftCollectionNameHereCap has key, store {
         id: UID,
