@@ -9,6 +9,7 @@ module collection::collection {
     use sui::coin::Coin;
     use sui::event;
     use sui::vec_set::{Self as set, VecSet as Set};
+    use utils::time_lock::{Self, TimeLock};
     use utils::utils;
     use utils::payments;
     
@@ -17,7 +18,10 @@ module collection::collection {
     const COLLECTION_NAME: vector<u8> = b"NftCollectionNameHere";
     const MAX_SUPPLY: u64 = 100;
     const PRICE: u64 = 100000000;  
-    const WHITELIST_PRICE: u64 = 100000000;
+    const PRICE_WHITELIST: u64 = 100000000;
+    const RELEASE_DATE: u64 = 1669237165;
+    const RELEASE_DATE_WHITELIST: u64 = 1669233565;
+    
     const MINT_REVEALED: bool = false;
 
     const URI_PREFIX: vector<u8> = b"ipfs://";
@@ -47,15 +51,15 @@ module collection::collection {
         counter: u64,
         price: u64,
         price_whitelist: u64,
+        release: TimeLock,
+        release_whitelist: TimeLock,
         whitelist: Set<address>,
-        released: bool,
-        released_whitelist: bool,
     }
 
-    struct NftNameHere has key {
+    struct NftNameHere has key, store {
         id: UID,
         name: String,
-        uri: Url,
+        url: Url,
         seed: String,
         revealed: bool,
     }
@@ -74,20 +78,21 @@ module collection::collection {
             owner: tx_context::sender(ctx),
             counter: 0,
             price: PRICE,
-            price_whitelist: WHITELIST_PRICE,
+            price_whitelist: PRICE_WHITELIST,
+            release: time_lock::new(RELEASE_DATE),
+            release_whitelist: time_lock::new(RELEASE_DATE_WHITELIST),
             whitelist: set::empty(),
-            released_whitelist: false,
-            released: false,
         });
     }
 
     public entry fun mint(collection: &mut NftCollectionNameHere, payment: vector<Coin<SUI>>, ctx: &mut TxContext) {
 
         // Check release status and calculate price
-        assert!(collection.released_whitelist, ECOLLECTION_NOT_RELEASED_YET);
+        time_lock::destroy(collection.release_whitelist, ctx);
         let price = collection.price;
-        if(!collection.released) {
-            assert!(set::contains(&collection.whitelist, &tx_context::sender(ctx)), ESENDER_NOT_IN_WHITELIST);
+        let user_whitelisted = set::contains(&collection.whitelist, &tx_context::sender(ctx));
+        if(!time_lock::is_locked(collection.release, ctx)) {
+            assert!(user_whitelisted, ESENDER_NOT_IN_WHITELIST);
             price = collection.price_whitelist;
         };
 
@@ -104,7 +109,7 @@ module collection::collection {
         let nft = NftNameHere {
             id: object::new(ctx),
             name: ascii::string(UNREVEALED_NFT_NAME),
-            uri: utils::build_url(URI_PREFIX, UNREVEALED_URI, UNREVEALED_NFT_FILE_NAME, UNREVEALED_NFT_FILE_FORMAT),
+            url: utils::build_url(URI_PREFIX, UNREVEALED_URI, UNREVEALED_NFT_FILE_NAME, UNREVEALED_NFT_FILE_FORMAT),
             seed: utils::u64_to_string(collection.counter),
             revealed: false,
         };
@@ -120,33 +125,18 @@ module collection::collection {
         transfer::transfer(nft, tx_context::sender(ctx));
 
         // Remove user from whitelist
-        if(collection.released_whitelist && !collection.released) set::remove(&mut collection.whitelist, &tx_context::sender(ctx));
+        if (user_whitelisted) set::remove(&mut collection.whitelist, &tx_context::sender(ctx));
     }
 
     public entry fun reveal(nft: &mut NftNameHere) {
         assert!(!nft.revealed, ENFT_ALREADY_REVEALED);
 
         nft.name  = ascii::string(COLLECTION_NAME);
-        nft.uri = utils::build_url(URI_PREFIX, COLLECTION_URI, ascii::into_bytes(nft.seed), NFT_FILE_FORMAT);
+        nft.url = utils::build_url(URI_PREFIX, COLLECTION_URI, ascii::into_bytes(nft.seed), NFT_FILE_FORMAT);
         nft.revealed = true;
     }
 
-    public entry fun release_whitelist(_: &NftCollectionNameHereCap, collection: &mut NftCollectionNameHere) {
-        assert!(!collection.released_whitelist, ECOLLECTION_ALREADY_RELEASED_FOR_WHITELIST);
-
-        collection.released_whitelist = true;
-    }
-
-    public entry fun release(_: &NftCollectionNameHereCap, collection: &mut NftCollectionNameHere) {
-        assert!(!collection.released, ECOLLECTION_ALREADY_RELEASED);
-
-        collection.released_whitelist = true;
-        collection.released = true;
-        collection.whitelist = set::empty();
-    }
-
     public entry fun add_to_whitelist(_: &NftCollectionNameHereCap, collection: &mut NftCollectionNameHere, addresses: vector<address>) {
-        assert!(!collection.released_whitelist, ECOLLECTION_ALREADY_RELEASED);
 
         while(!vector::is_empty(&addresses)) {
             set::insert(&mut collection.whitelist, vector::pop_back(&mut addresses));
