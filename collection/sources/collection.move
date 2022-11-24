@@ -34,12 +34,12 @@ module collection::collection {
 
     // =================================
     
-    const ESOLD_OUT: u64 = 0;
-    const ECOLLECTION_NOT_RELEASED_YET: u64 = 1;
-    const ECOLLECTION_ALREADY_RELEASED_FOR_WHITELIST: u64 = 2;
-    const ECOLLECTION_ALREADY_RELEASED: u64 = 3;
-    const ESENDER_NOT_IN_WHITELIST: u64 = 4;
-    const ENFT_ALREADY_REVEALED: u64 = 5;
+    const ESoldOut: u64 = 0;
+    const ECollectionNotReleasedYet: u64 = 1;
+    const ECollectionAlreadyReleasedForWhitelist: u64 = 2;
+    const ECollectionAlreadyReleased: u64 = 3;
+    const ESenderNotInWhitelist: u64 = 4;
+    const ENftAlreadyRevealed: u64 = 5;
 
     struct NftCollectionNameHereCap has key, store {
         id: UID,
@@ -92,12 +92,12 @@ module collection::collection {
         let price = collection.price;
         let user_whitelisted = set::contains(&collection.whitelist, &tx_context::sender(ctx));
         if(!time_lock::is_locked(collection.release, ctx)) {
-            assert!(user_whitelisted, ESENDER_NOT_IN_WHITELIST);
+            assert!(user_whitelisted, ESenderNotInWhitelist);
             price = collection.price_whitelist;
         };
 
         // Check nft availability
-        assert!(collection.counter < MAX_SUPPLY, ESOLD_OUT);
+        assert!(collection.counter < MAX_SUPPLY, ESoldOut);
 
         // Make payment
         payments::pay(payment, price, collection.owner, ctx);
@@ -129,7 +129,7 @@ module collection::collection {
     }
 
     public entry fun reveal(nft: &mut NftNameHere) {
-        assert!(!nft.revealed, ENFT_ALREADY_REVEALED);
+        assert!(!nft.revealed, ENftAlreadyRevealed);
 
         nft.name  = ascii::string(COLLECTION_NAME);
         nft.url = utils::build_url(URI_PREFIX, COLLECTION_URI, ascii::into_bytes(nft.seed), NFT_FILE_FORMAT);
@@ -142,5 +142,4 @@ module collection::collection {
             set::insert(&mut collection.whitelist, vector::pop_back(&mut addresses));
         };
     }
-
 }
