@@ -1,3 +1,3 @@
-# sui-test
+# sui-examples
 
-SUI test projects
+SUI example projects
