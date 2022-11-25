@@ -21,5 +21,5 @@ Created Objects:
   * **$1:** Collection address
   * **$2:** Array with sui addresses of the sender
 ```
-$ sui client call --package 0xcontract_address --module "collection" --function "add_to_whitelist" --args 0xcollection_cap 0xcollection "[\"0xsui1\", \"0xsui2\"]" --gas-budget 10000
+$ sui client call --package 0xcontract_address --module "collection" --function "mint" --args 0xcollection_cap 0xcollection "[\"0xsui1\", \"0xsui2\"]" --gas-budget 10000
 ```
