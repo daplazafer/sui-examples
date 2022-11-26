@@ -10,28 +10,26 @@ module nftcollection::collection {
     use sui::event;
     use sui::pay;
     use sui::vec_set::{Self as set, VecSet as Set};
-    use nftcollection::time_lock::{Self as lock, TimeLock as Lock};
     
     // ===== Collection parameters =====
     const COLLECTION_NAME: vector<u8> = b"NftNameHere";
     const MAX_SUPPLY: u64 = 100;
     const PRICE: u64 = 100000000;  
     const PRICE_WHITELIST: u64 = 100000000;
-    const RELEASE_DATE: u64 = 1669237165;
-    const RELEASE_DATE_WHITELIST: u64 = 1669233565;
+    const RELEASE: u64 = 0;
+    const NFT_DESCRIPTION: vector<u8> = b"NftNameHere Nft";
     const URL_PREFIX: vector<u8> = b"ipfs://";
     const COLLECTION_URI: vector<u8> = b"bafybeiaetnhmscuk6nqdnk4lvh6lxeadehfo342pszyqdodqoodtld77v4/";
     const NFT_FILE_FORMAT: vector<u8> = b".png";
     const UNREVEALED_NFT_NAME: vector<u8> = b"???";
+    const UNREVEALED_NFT_DESCRIPTION: vector<u8> = b"Ready to reveal";
     const UNREVEALED_URL: vector<u8> = b"bafybeifqbhntp3ghp4vwrma3xivy5mkwlt3ljfiebr5zaewetjk72c4thu/INCOGNITA.png";
     const WHITELIST: vector<address> = vector[];
-    
     const ESoldOut: u64 = 0;
-    const ECollectionNotReleasedYet: u64 = 1;
-    const ECollectionAlreadyReleased: u64 = 2;
-    const ESenderNotInWhitelist: u64 = 3;
-    const ENoCoins: u64 = 4;
-    const ENftAlreadyRevealed: u64 = 5;
+    const ECollectionAlreadyReleased: u64 = 1;
+    const ESenderNotInWhitelist: u64 = 2;
+    const ENoCoins: u64 = 3;
+    const ENftAlreadyRevealed: u64 = 4;
 
     struct NftNameHereCap has key, store {
         id: UID,
@@ -43,14 +41,14 @@ module nftcollection::collection {
         minted: u64,
         price: u64,
         price_whitelist: u64,
-        release: Lock,
-        release_whitelist: Lock,
+        release: u64,
         whitelist: Set<address>,
     }
 
     struct NftNameHereNft has key, store {
         id: UID,
         name: String,
+        description: String,
         url: Url,
         seed: u64,
         revealed: bool,
@@ -71,33 +69,26 @@ module nftcollection::collection {
             minted: 0,
             price: PRICE,
             price_whitelist: PRICE_WHITELIST,
-            release: lock::new(RELEASE_DATE),
-            release_whitelist: lock::new(RELEASE_DATE_WHITELIST),
+            release: RELEASE,
             whitelist: new_set<address>(WHITELIST),
         });
     }
 
-    /// Mint an nft
     public entry fun mint(
         collection: &mut NftNameHereCollection, 
         sui_balance: vector<Coin<SUI>>, 
-        ctx: &mut TxContext
+        ctx: &mut TxContext,
     ) {
         assert!(collection.minted < MAX_SUPPLY, ESoldOut);
 
-        assert!(lock::is_locked(collection.release_whitelist, ctx), ECollectionNotReleasedYet);
-        let price = collection.price;
-        let user_whitelisted = set::contains(&collection.whitelist, &tx_context::sender(ctx));
-        if(!lock::is_locked(collection.release, ctx)) {
-            assert!(user_whitelisted, ESenderNotInWhitelist);
-            price = collection.price_whitelist;
-        }; 
+        let (sender_whitelisted, price) = get_price(collection, ctx);
 
         pay(sui_balance, price, collection.owner, ctx);
 
         let nft = NftNameHereNft {
             id: object::new(ctx),
             name: string::utf8(UNREVEALED_NFT_NAME),
+            description: string::utf8(UNREVEALED_NFT_DESCRIPTION),
             url: url(vector[URL_PREFIX, UNREVEALED_URL]),
             seed: collection.minted,
             revealed: false,
@@ -112,29 +103,56 @@ module nftcollection::collection {
 
         collection.minted = collection.minted + 1;
 
-        if (user_whitelisted) set::remove(&mut collection.whitelist, &tx_context::sender(ctx));
+        if (sender_whitelisted) set::remove(&mut collection.whitelist, &tx_context::sender(ctx));
     }
 
-    /// Reveal an nft
     public entry fun reveal(
-        nft: &mut NftNameHereNft
+        nft: &mut NftNameHereNft,
     ) {
         assert!(!nft.revealed, ENftAlreadyRevealed);
 
         nft.name  = string::utf8(COLLECTION_NAME);
+        nft.description  = string::utf8(NFT_DESCRIPTION);
         nft.url = url(vector[URL_PREFIX, COLLECTION_URI, int_to_bytes(nft.seed), NFT_FILE_FORMAT]);
         nft.revealed = true;
     }
 
-    /// Add addresses to whitelist
     public entry fun add_to_whitelist(
         _: &NftNameHereCap, 
         collection: &mut NftNameHereCollection,
-        addresses: vector<address>
+        addresses: vector<address>,
+        ctx: &mut TxContext,
     ) {
+        assert!(collection.release < tx_context::epoch(ctx), ECollectionAlreadyReleased);
+
         while(!vector::is_empty(&addresses)) {
             set::insert(&mut collection.whitelist, vector::pop_back(&mut addresses));
         };
+    }
+
+    public entry fun set_release(
+        _: &NftNameHereCap, 
+        collection: &mut NftNameHereCollection,
+        epoch: u64,
+        ctx: &mut TxContext,
+    ) {
+        assert!(collection.release < tx_context::epoch(ctx), ECollectionAlreadyReleased);
+
+        collection.release = epoch;
+    }
+
+    fun get_price(collection: &mut NftNameHereCollection, ctx: &mut TxContext): (bool, u64) { 
+
+        let sender_whitelisted = false;
+        let price = collection.price;
+
+        if(collection.release < tx_context::epoch(ctx)){
+            sender_whitelisted = set::contains(&collection.whitelist, &tx_context::sender(ctx));
+            assert!(sender_whitelisted, ESenderNotInWhitelist);
+            price = collection.price_whitelist;
+        };
+
+        (sender_whitelisted, price)
     }
 
     fun int_to_bytes(int: u64): vector<u8>{
@@ -171,10 +189,10 @@ module nftcollection::collection {
     }
 
     fun new_set<T: copy + drop>(elements: vector<T>): Set<T> {
-        let set = set::empty<T>();
+        let new_set = set::empty<T>();
         while(!vector::is_empty(&elements)) {
-            set::insert(&mut set, vector::pop_back(&mut elements));
+            set::insert(&mut new_set, vector::pop_back(&mut elements));
         };
-        set
+        new_set
     }
 }

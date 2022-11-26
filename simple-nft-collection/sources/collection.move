@@ -8,31 +8,33 @@ module simplenftcollection::collection {
     use sui::sui::SUI;
     use sui::coin::{Self, Coin};
     use sui::pay;
-    use sui::epoch_time_lock::{Self as lock, EpochTimeLock as Lock};
     
     // ===== Collection parameters =====
     
     const MAX_SUPPLY: u64 = 100;
     const PRICE: u64 = 100000000;  
-    const RELEASE: u64 = 1669237165;
+    const RELEASE: u64 = 0;
     const NFT_NAME: vector<u8> = b"NftNameHere";
+    const NFT_DESCRIPTION: vector<u8> = b"NftNameHere Nft";
     const IPFS_FOLDER_URL: vector<u8> = b"ipfs://bafybeiaetnhmscuk6nqdnk4lvh6lxeadehfo342pszyqdodqoodtld77v4/";
     const NFT_FILE_FORMAT: vector<u8> = b".png";
     
     const ESoldOut: u64 = 0;
-    const ENoCoins: u64 = 1;
+    const ECollectionNotReleasedYet: u64 = 1;
+    const ENoCoins: u64 = 2;
 
     struct NftNameHereCollection has key {
         id: UID,
         owner: address,
         minted: u64,
         price: u64,
-        release: Lock,
+        release: u64,
     }
 
     struct NftNameHereNft has key, store {
         id: UID,
         name: String,
+        description: String,
         url: Url,
     }
 
@@ -42,7 +44,7 @@ module simplenftcollection::collection {
             owner: tx_context::sender(ctx),
             minted: 0,
             price: PRICE,
-            release: lock::new(RELEASE, ctx),
+            release: RELEASE,
         });
     }
 
@@ -51,7 +53,7 @@ module simplenftcollection::collection {
         sui_balance: vector<Coin<SUI>>, 
         ctx: &mut TxContext
     ) {
-        lock::destroy(collection.release, ctx);
+        assert!(collection.release < tx_context::epoch(ctx), ECollectionNotReleasedYet);
         assert!(collection.minted < MAX_SUPPLY, ESoldOut);
 
         pay(sui_balance, collection.price, collection.owner, ctx);
@@ -59,6 +61,7 @@ module simplenftcollection::collection {
         transfer::transfer(NftNameHereNft {
             id: object::new(ctx),
             name: string::utf8(NFT_NAME),
+            description: string::utf8(NFT_DESCRIPTION),
             url: url(vector[IPFS_FOLDER_URL, int_to_bytes(collection.minted), NFT_FILE_FORMAT]),
         }, tx_context::sender(ctx));
 
