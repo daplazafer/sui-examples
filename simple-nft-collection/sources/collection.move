@@ -16,6 +16,7 @@ module simplenftcollection::collection {
     const PRICE: u64 = 100000000;  
     const RELEASE: u64 = 1669237165;
     const NFT_NAME: vector<u8> = b"NftNameHere";
+    const NFT_DESCRIPTION: vector<u8> = b"NftNameHere Nft";
     const IPFS_FOLDER_URL: vector<u8> = b"ipfs://bafybeiaetnhmscuk6nqdnk4lvh6lxeadehfo342pszyqdodqoodtld77v4/";
     const NFT_FILE_FORMAT: vector<u8> = b".png";
     
@@ -33,6 +34,7 @@ module simplenftcollection::collection {
     struct NftNameHereNft has key, store {
         id: UID,
         name: String,
+        description: String,
         url: Url,
     }
 
@@ -59,6 +61,7 @@ module simplenftcollection::collection {
         transfer::transfer(NftNameHereNft {
             id: object::new(ctx),
             name: string::utf8(NFT_NAME),
+            description: string::utf8(NFT_DESCRIPTION),
             url: url(vector[IPFS_FOLDER_URL, int_to_bytes(collection.minted), NFT_FILE_FORMAT]),
         }, tx_context::sender(ctx));
 

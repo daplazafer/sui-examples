@@ -42,3 +42,11 @@ Only the owner (deployer) has priviledges to use these functions. The collection
 ```
 $ sui client call --package 0xcontract_address --module "collection" --function "add_to_whitelist" --args 0xcollection_cap 0xcollection "[\"0xaddress1\", \"0xaddress2\"]" --gas-budget 10000
 ```
+* ### **Set release epoch (`set_release`)**
+  Set release epoch if .
+  * **$1:** Collection cap address
+  * **$2:** Collection address
+  * **$3:** Epoch
+```
+$ sui client call --package 0xcontract_address --module "collection" --function "set_release" --args 0xcollection_cap 0xcollection epoch --gas-budget 10000
+```
