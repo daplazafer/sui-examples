@@ -25,6 +25,7 @@ module nftcollection::collection {
     const UNREVEALED_NFT_DESCRIPTION: vector<u8> = b"Ready to reveal";
     const UNREVEALED_URL: vector<u8> = b"bafybeifqbhntp3ghp4vwrma3xivy5mkwlt3ljfiebr5zaewetjk72c4thu/INCOGNITA.png";
     const WHITELIST: vector<address> = vector[];
+
     const ESoldOut: u64 = 0;
     const ECollectionAlreadyReleased: u64 = 1;
     const ESenderNotInWhitelist: u64 = 2;
