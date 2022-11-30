@@ -47,7 +47,7 @@ module coinflip::casino {
         ctx: &mut TxContext,
     ) {
         if(win_condition(ctx)) {
-            let fee = bet * 100 / casino.fee;
+            let fee = (casino.fee * 100) / bet;
             let net_worth = bet - fee; 
             transfer_in(casino, coins, fee, ctx);
             transfer_out(casino, net_worth, ctx);
