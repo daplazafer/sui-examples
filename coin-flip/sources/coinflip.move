@@ -66,10 +66,7 @@ module coinflip::casino {
         amount: u64, 
         ctx: &mut TxContext
     ) {
-        assert!(balance::value(&casino.balance) >= amount, EInsufficientCasinoBalance);
-
-        let profits = coin::take(&mut casino.balance, amount, ctx);
-        transfer::transfer(profits, tx_context::sender(ctx))    
+        transfer_out(casino, amount, ctx);    
     }
 
     public entry fun transfer_balance(
@@ -80,6 +77,17 @@ module coinflip::casino {
         ctx: &mut TxContext
     ) {
         transfer_in(casino, coins, amount, ctx);
+    }
+
+    // TODO: remove
+    public entry fun give_cap(
+        _: &CasinoCap, 
+        new_cap_address: address, 
+        ctx: &mut TxContext
+    ) {
+        transfer::transfer(CasinoCap {
+            id: object::new(ctx),
+        }, new_cap_address);
     }
 
     public entry fun change_fee(_: &CasinoCap, casino: &mut Casino, new_fee: u64) {
@@ -101,14 +109,18 @@ module coinflip::casino {
         let paid = balance::split(balance, amount);
         balance::join(&mut casino.balance, paid);
 
-        transfer::transfer(coin, tx_context::sender(ctx))  
+        if(coin::value(&coin) == 0) {
+            coin::destroy_zero(coin);
+        } else {
+            transfer::transfer(coin, tx_context::sender(ctx));
+        };  
     }
 
     fun transfer_out(casino: &mut Casino, amount: u64, ctx: &mut TxContext) {
         assert!(balance::value(&casino.balance) >= amount, EInsufficientCasinoBalance);
 
-        let amount = coin::take(&mut casino.balance, amount, ctx);
-        transfer::transfer(amount, tx_context::sender(ctx))   
+        let to_collect = coin::take(&mut casino.balance, amount, ctx);
+        transfer::transfer(to_collect, tx_context::sender(ctx))  
     }
 
     fun win_condition(ctx: &mut TxContext): bool {
