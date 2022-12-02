@@ -7,6 +7,7 @@ module coinflip::casino {
     use sui::balance::{Self, Balance};
     use sui::tx_context::{Self, TxContext};
     use sui::event;
+    use coinflip::random;
     
     const DEFAULT_FEE: u64 = 10;
     const MAX_FEE: u64 = 20;
@@ -124,6 +125,6 @@ module coinflip::casino {
     }
 
     fun win_condition(ctx: &mut TxContext): bool {
-        tx_context::epoch(ctx) % 2 == 0
+        random::generate(2, ctx) == 0
     }
 }
