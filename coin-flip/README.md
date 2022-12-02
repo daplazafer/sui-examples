@@ -22,5 +22,5 @@ Created Objects:
   * **$2:** Array with sui addresses of the sender
   * **$3:** Amount to bet
 ```
-$ sui client call --package 0xcontract_address --module "collection" --function "mint" --args 0xcasino_cap 0xcasino "[\"0xsui1\", \"0xsui2\"]" bet --gas-budget 10000
+$ sui client call --package 0xcontract_address --module "casino" --function "flip" --args 0xcasino_cap 0xcasino "[\"0xsui1\", \"0xsui2\"]" bet --gas-budget 10000
 ```
