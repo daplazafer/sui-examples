@@ -14,8 +14,8 @@ module nftcollection::collection {
     // ===== Collection parameters =====
     const COLLECTION_NAME: vector<u8> = b"NftNameHere";
     const MAX_SUPPLY: u64 = 100;
-    const PRICE: u64 = 100000000;  
-    const PRICE_WHITELIST: u64 = 100000000;
+    const PRICE: u64 = 10000000;  
+    const PRICE_WHITELIST: u64 = 10000000;
     const RELEASE: u64 = 0;
     const NFT_DESCRIPTION: vector<u8> = b"NftNameHere Nft";
     const URL_PREFIX: vector<u8> = b"ipfs://";
@@ -147,7 +147,7 @@ module nftcollection::collection {
         let sender_whitelisted = false;
         let price = collection.price;
 
-        if(collection.release < tx_context::epoch(ctx)){
+        if(collection.release > tx_context::epoch(ctx)){
             sender_whitelisted = set::contains(&collection.whitelist, &tx_context::sender(ctx));
             assert!(sender_whitelisted, ESenderNotInWhitelist);
             price = collection.price_whitelist;

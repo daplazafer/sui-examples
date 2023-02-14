@@ -12,7 +12,7 @@ module simplenftcollection::collection {
     // ===== Collection parameters =====
     
     const MAX_SUPPLY: u64 = 100;
-    const PRICE: u64 = 100000000;  
+    const PRICE: u64 = 10000000;  
     const RELEASE: u64 = 0;
     const NFT_NAME: vector<u8> = b"NftNameHere";
     const NFT_DESCRIPTION: vector<u8> = b"NftNameHere Nft";
@@ -53,7 +53,7 @@ module simplenftcollection::collection {
         sui_balance: vector<Coin<SUI>>, 
         ctx: &mut TxContext
     ) {
-        assert!(collection.release < tx_context::epoch(ctx), ECollectionNotReleasedYet);
+        assert!(collection.release <= tx_context::epoch(ctx), ECollectionNotReleasedYet);
         assert!(collection.minted < MAX_SUPPLY, ESoldOut);
 
         pay(sui_balance, collection.price, collection.owner, ctx);
