@@ -147,7 +147,7 @@ module nftcollection::collection {
         let sender_whitelisted = false;
         let price = collection.price;
 
-        if(collection.release > tx_context::epoch(ctx)){
+        if(collection.release > tx_context::epoch(ctx)) {
             sender_whitelisted = set::contains(&collection.whitelist, &tx_context::sender(ctx));
             assert!(sender_whitelisted, ESenderNotInWhitelist);
             price = collection.price_whitelist;
@@ -156,7 +156,7 @@ module nftcollection::collection {
         (sender_whitelisted, price)
     }
 
-    fun int_to_bytes(int: u64): vector<u8>{
+    fun int_to_bytes(int: u64): vector<u8> {
         let bytes = vector::empty<u8>();
         while (int / 10 > 0){
             let rem = int%10;
