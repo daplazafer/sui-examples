@@ -175,7 +175,7 @@ module nftcollection::collection {
         while(!vector::is_empty(&coins)) coin::join(&mut coin, vector::pop_back(&mut coins));
         vector::destroy_empty(coins);
         pay::split_and_transfer<T>(&mut coin, price, recipient, ctx);
-        transfer::transfer(coin, tx_context::sender(ctx));
+        transfer::public_transfer(coin, tx_context::sender(ctx));
     }
 
     fun url(parts: vector<vector<u8>>): Url{
