@@ -1,4 +1,5 @@
 module nftcollection::collection {
+    // Replace 'NftNameHere' in file with your CollectionName in CammelCase
     use std::string::{Self, String};
     use std::vector;
     use sui::url::{Self, Url};
@@ -15,12 +16,12 @@ module nftcollection::collection {
     const COLLECTION_NAME: vector<u8> = b"NftNameHere";
     const MAX_SUPPLY: u64 = 100;
     // 1 SUI = 1000000000
-    const PRICE: u64 = 10000000;  
-    const PRICE_WHITELIST: u64 = 10000000;
-    const RELEASE: u64 = 0;
+    const PRICE: u64 = 1000000000;  
+    const PRICE_WHITELIST: u64 = 1000000000;
+    const RELEASE_EPOCH: u64 = 0;
     const NFT_DESCRIPTION: vector<u8> = b"NftNameHere Nft";
     const URL_PREFIX: vector<u8> = b"ipfs://";
-    const COLLECTION_URI: vector<u8> = b"bafybeiaetnhmscuk6nqdnk4lvh6lxeadehfo342pszyqdodqoodtld77v4/";
+    const COLLECTION_URI: vector<u8> = b"bafybeiaetnhmscuk6nqdnk4lvh6lxeadehfo342pszyqdodqoodtld77v4/"; // use '/' at the end!
     const NFT_FILE_FORMAT: vector<u8> = b".png";
     const UNREVEALED_NFT_NAME: vector<u8> = b"???";
     const UNREVEALED_NFT_DESCRIPTION: vector<u8> = b"Ready to reveal";
@@ -41,6 +42,7 @@ module nftcollection::collection {
         id: UID,
         owner: address,
         minted: u64,
+        max_supply: u64,
         price: u64,
         price_whitelist: u64,
         release: u64,
@@ -69,19 +71,29 @@ module nftcollection::collection {
             id: object::new(ctx),
             owner: tx_context::sender(ctx),
             minted: 0,
+            max_supply: MAX_SUPPLY,
             price: PRICE,
             price_whitelist: PRICE_WHITELIST,
-            release: RELEASE,
+            release: RELEASE_EPOCH,
             whitelist: new_set<address>(WHITELIST),
         });
     }
 
-    public entry fun mint(
+    public entry fun mint_with_multiple(
         collection: &mut NftNameHereCollection, 
         sui_balance: vector<Coin<SUI>>, 
         ctx: &mut TxContext,
     ) {
-        assert!(collection.minted < MAX_SUPPLY, ESoldOut);
+        let coin = join_coins(sui_balance);
+        mint(collection, coin, ctx);
+    }
+
+    public entry fun mint(
+        collection: &mut NftNameHereCollection, 
+        sui_balance: Coin<SUI>, 
+        ctx: &mut TxContext,
+    ) {
+        assert!(collection.minted < collection.max_supply, ESoldOut);
 
         let (sender_whitelisted, price) = get_price(collection, ctx);
 
@@ -119,17 +131,26 @@ module nftcollection::collection {
         nft.revealed = true;
     }
 
+    public entry fun add_to_whitelist_multiple(
+        cap: &NftNameHereCap, 
+        collection: &mut NftNameHereCollection,
+        addresses_to_add: vector<address>,
+        ctx: &mut TxContext,
+    ) {
+        while(!vector::is_empty(&addresses_to_add)) {
+            add_to_whitelist(cap, collection, vector::pop_back(&mut addresses_to_add), ctx);
+        };
+    }
+
     public entry fun add_to_whitelist(
         _: &NftNameHereCap, 
         collection: &mut NftNameHereCollection,
-        addresses: vector<address>,
+        address_to_add: address,
         ctx: &mut TxContext,
     ) {
         assert!(collection.release < tx_context::epoch(ctx), ECollectionAlreadyReleased);
 
-        while(!vector::is_empty(&addresses)) {
-            set::insert(&mut collection.whitelist, vector::pop_back(&mut addresses));
-        };
+        set::insert(&mut collection.whitelist, address_to_add);
     }
 
     public entry fun set_release(
@@ -141,6 +162,13 @@ module nftcollection::collection {
         assert!(collection.release < tx_context::epoch(ctx), ECollectionAlreadyReleased);
 
         collection.release = epoch;
+    }
+
+    public entry fun is_whitelisted(
+        collection: &mut NftNameHereCollection, 
+        ctx: &mut TxContext
+    ): bool {
+        tx_context::epoch(ctx) <= collection.release
     }
 
     fun get_price(collection: &mut NftNameHereCollection, ctx: &mut TxContext): (bool, u64) { 
@@ -169,12 +197,16 @@ module nftcollection::collection {
         bytes
     }
 
-    fun pay<T>(coins: vector<Coin<T>>, price: u64, recipient: address, ctx: &mut TxContext) {
+    fun join_coins<T>(coins: vector<Coin<T>>): Coin<T> {
         assert!(vector::length(&coins) > 0, ENoCoins);
 
         let coin = vector::pop_back(&mut coins);
         while(!vector::is_empty(&coins)) coin::join(&mut coin, vector::pop_back(&mut coins));
         vector::destroy_empty(coins);
+        coin
+    }
+
+    fun pay<T>(coin: Coin<T>, price: u64, recipient: address, ctx: &mut TxContext) {
         pay::split_and_transfer<T>(&mut coin, price, recipient, ctx);
         transfer::public_transfer(coin, tx_context::sender(ctx));
     }

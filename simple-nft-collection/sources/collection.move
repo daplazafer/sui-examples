@@ -1,34 +1,47 @@
-module simplenftcollection::collection {
+module nftcollection::collection {
+    // Replace all 'NftNameHere' occurrences in file with your CollectionName in CammelCase
     use std::string::{Self, String};
     use std::vector;
     use sui::url::{Self, Url};
-    use sui::object::{Self, UID};
+    use sui::object::{Self, ID, UID};
     use sui::transfer;
     use sui::tx_context::{Self, TxContext};
     use sui::sui::SUI;
     use sui::coin::{Self, Coin};
+    use sui::event;
     use sui::pay;
+    use sui::vec_set::{Self as set, VecSet as Set};
     
     // ===== Collection parameters =====
-    
+    const COLLECTION_NAME: vector<u8> = b"NftNameHere";
     const MAX_SUPPLY: u64 = 100;
-    const PRICE: u64 = 10000000;  
-    const RELEASE: u64 = 0;
-    const NFT_NAME: vector<u8> = b"NftNameHere";
+    // 1 SUI = 1000000000
+    const PRICE: u64 = 1000000000;  
+    const PRICE_WHITELIST: u64 = 1000000000;
+    const RELEASE_EPOCH: u64 = 0;
     const NFT_DESCRIPTION: vector<u8> = b"NftNameHere Nft";
-    const IPFS_FOLDER_URL: vector<u8> = b"ipfs://bafybeiaetnhmscuk6nqdnk4lvh6lxeadehfo342pszyqdodqoodtld77v4/";
+    const FOLDER_URL: vector<u8> = b"ipfs://bafybeiaetnhmscuk6nqdnk4lvh6lxeadehfo342pszyqdodqoodtld77v4/"; // use '/' at the end!
     const NFT_FILE_FORMAT: vector<u8> = b".png";
-    
+    const WHITELIST: vector<address> = vector[];
+
     const ESoldOut: u64 = 0;
-    const ECollectionNotReleasedYet: u64 = 1;
-    const ENoCoins: u64 = 2;
+    const ECollectionAlreadyReleased: u64 = 1;
+    const ESenderNotInWhitelist: u64 = 2;
+    const ENoCoins: u64 = 3;
+
+    struct NftNameHereCap has key, store {
+        id: UID,
+    }
 
     struct NftNameHereCollection has key {
         id: UID,
         owner: address,
         minted: u64,
+        max_supply: u64,
         price: u64,
+        price_whitelist: u64,
         release: u64,
+        whitelist: Set<address>,
     }
 
     struct NftNameHereNft has key, store {
@@ -38,37 +51,121 @@ module simplenftcollection::collection {
         url: Url,
     }
 
+    struct NftNameHereNftMinted has copy, drop {
+        id: ID,
+        creator: address,
+    }
+
     fun init(ctx: &mut TxContext) {
+        transfer::transfer(NftNameHereCap {
+            id: object::new(ctx)
+        }, tx_context::sender(ctx));
         transfer::share_object(NftNameHereCollection {
             id: object::new(ctx),
             owner: tx_context::sender(ctx),
             minted: 0,
+            max_supply: MAX_SUPPLY,
             price: PRICE,
-            release: RELEASE,
+            price_whitelist: PRICE_WHITELIST,
+            release: RELEASE_EPOCH,
+            whitelist: new_set<address>(WHITELIST),
         });
+    }
+
+    public entry fun mint_with_multiple(
+        collection: &mut NftNameHereCollection, 
+        sui_balance: vector<Coin<SUI>>, 
+        ctx: &mut TxContext,
+    ) {
+        let coin = join_coins(sui_balance);
+        mint(collection, coin, ctx);
     }
 
     public entry fun mint(
         collection: &mut NftNameHereCollection, 
-        sui_balance: vector<Coin<SUI>>, 
-        ctx: &mut TxContext
+        sui_balance: Coin<SUI>, 
+        ctx: &mut TxContext,
     ) {
-        assert!(collection.release <= tx_context::epoch(ctx), ECollectionNotReleasedYet);
-        assert!(collection.minted < MAX_SUPPLY, ESoldOut);
+        assert!(collection.minted < collection.max_supply, ESoldOut);
 
-        pay(sui_balance, collection.price, collection.owner, ctx);
+        let (sender_whitelisted, price) = get_price(collection, ctx);
 
-        transfer::transfer(NftNameHereNft {
+        pay(sui_balance, price, collection.owner, ctx);
+
+        let nft = NftNameHereNft {
             id: object::new(ctx),
-            name: string::utf8(NFT_NAME),
+            name: string::utf8(COLLECTION_NAME),
             description: string::utf8(NFT_DESCRIPTION),
-            url: url(vector[IPFS_FOLDER_URL, int_to_bytes(collection.minted), NFT_FILE_FORMAT]),
-        }, tx_context::sender(ctx));
+            url: url(vector[FOLDER_URL, int_to_bytes(collection.minted), NFT_FILE_FORMAT]),
+        };
+
+        event::emit(NftNameHereNftMinted { 
+            id: object::uid_to_inner(&nft.id),
+            creator: tx_context::sender(ctx),
+        });
+
+        transfer::transfer(nft, tx_context::sender(ctx));
 
         collection.minted = collection.minted + 1;
+
+        if (sender_whitelisted) set::remove(&mut collection.whitelist, &tx_context::sender(ctx));
     }
 
-    fun int_to_bytes(int: u64): vector<u8>{
+    public entry fun add_to_whitelist_multiple(
+        _: &NftNameHereCap, 
+        collection: &mut NftNameHereCollection,
+        addresses_to_add: vector<address>,
+        ctx: &mut TxContext,
+    ) {
+        while(!vector::is_empty(&addresses_to_add)) {
+            add_to_whitelist(_, collection, vector::pop_back(&mut addresses_to_add), ctx);
+        };
+    }
+
+    public entry fun add_to_whitelist(
+        _: &NftNameHereCap, 
+        collection: &mut NftNameHereCollection,
+        address_to_add: address,
+        ctx: &mut TxContext,
+    ) {
+        assert!(collection.release < tx_context::epoch(ctx), ECollectionAlreadyReleased);
+
+        set::insert(&mut collection.whitelist, address_to_add);
+    }
+
+    public entry fun set_release(
+        _: &NftNameHereCap, 
+        collection: &mut NftNameHereCollection,
+        epoch: u64,
+        ctx: &mut TxContext,
+    ) {
+        assert!(collection.release < tx_context::epoch(ctx), ECollectionAlreadyReleased);
+
+        collection.release = epoch;
+    }
+
+    public entry fun is_whitelisted(
+        collection: &mut NftNameHereCollection, 
+        ctx: &mut TxContext
+    ): bool {
+        tx_context::epoch(ctx) <= collection.release
+    }
+
+    fun get_price(collection: &mut NftNameHereCollection, ctx: &mut TxContext): (bool, u64) { 
+
+        let sender_whitelisted = false;
+        let price = collection.price;
+
+        if(collection.release > tx_context::epoch(ctx)) {
+            sender_whitelisted = set::contains(&collection.whitelist, &tx_context::sender(ctx));
+            assert!(sender_whitelisted, ESenderNotInWhitelist);
+            price = collection.price_whitelist;
+        };
+
+        (sender_whitelisted, price)
+    }
+
+    fun int_to_bytes(int: u64): vector<u8> {
         let bytes = vector::empty<u8>();
         while (int / 10 > 0){
             let rem = int%10;
@@ -80,14 +177,18 @@ module simplenftcollection::collection {
         bytes
     }
 
-    fun pay<T>(coins: vector<Coin<T>>, price: u64, recipient: address, ctx: &mut TxContext) {
+    fun join_coins<T>(coins: vector<Coin<T>>): Coin<T> {
         assert!(vector::length(&coins) > 0, ENoCoins);
 
         let coin = vector::pop_back(&mut coins);
         while(!vector::is_empty(&coins)) coin::join(&mut coin, vector::pop_back(&mut coins));
         vector::destroy_empty(coins);
+        coin
+    }
+
+    fun pay<T>(coin: Coin<T>, price: u64, recipient: address, ctx: &mut TxContext) {
         pay::split_and_transfer<T>(&mut coin, price, recipient, ctx);
-        transfer::transfer(coin, tx_context::sender(ctx));
+        transfer::public_transfer(coin, tx_context::sender(ctx));
     }
 
     fun url(parts: vector<vector<u8>>): Url{
@@ -99,5 +200,13 @@ module simplenftcollection::collection {
         };
         vector::destroy_empty(parts);
         url::new_unsafe_from_bytes(builder)
+    }
+
+    fun new_set<T: copy + drop>(elements: vector<T>): Set<T> {
+        let new_set = set::empty<T>();
+        while(!vector::is_empty(&elements)) {
+            set::insert(&mut new_set, vector::pop_back(&mut elements));
+        };
+        new_set
     }
 }

@@ -1,10 +1,10 @@
 [package]
-name = "SimpleNftCollection"
+name = "NftCollection"
 version = "0.0.1"
 
 [dependencies]
-Sui = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework/packages/sui-framework", rev = "testnet" }
+Sui = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework/packages/sui-framework", rev = "devnet-0.33.0" }
 
 [addresses]
-simplenftcollection =  "0x0"
-sui =  "0000000000000000000000000000000000000000000000000000000000000002"
+nftcollection =  "0x0"
+sui =  "0x2"
