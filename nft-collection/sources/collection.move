@@ -14,6 +14,7 @@ module nftcollection::collection {
     // ===== Collection parameters =====
     const COLLECTION_NAME: vector<u8> = b"NftNameHere";
     const MAX_SUPPLY: u64 = 100;
+    // 1 SUI = 1000000000
     const PRICE: u64 = 10000000;  
     const PRICE_WHITELIST: u64 = 10000000;
     const RELEASE: u64 = 0;
